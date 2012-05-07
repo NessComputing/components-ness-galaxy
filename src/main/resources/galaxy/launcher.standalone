@@ -1,0 +1,224 @@
+#!/usr/bin/env ruby
+
+# Launcher script for standalone JARs, packaged in a galaxy tar.gz
+# Assumes that there is a lone .jar file in the root of the package
+# which has an appropriate manifest Main-Class and Classpath
+
+# If Galaxy is to start and stop processes, a bin/launcher script is
+# also required. This script takes one of "start", "stop", "restart", or
+# "status", and returns with exit status 0 (stopped), 1 (running), or 2
+# (unknown).
+
+=begin
+
+launcher command
+
+Commands:
+start
+stop
+restart
+status
+
+Commands return
+
+0 - Stopped
+1 - Running 
+2 - Unknown
+=end
+
+require 'timeout'
+require 'yaml'
+require 'rubygems'
+require 'galaxy/scripts'
+
+@scripts = Galaxy::ScriptSupport.new ARGV
+
+KILL_TIME=60
+SLEEP_TIME=1
+
+PID_FILE = File.join(@scripts.base, 'launcher.pid')
+LOG_FILE = File.join(@scripts.base, 'launcher.log')
+
+# Check whether a given process PID is alive or not.
+def is_alive pid
+  begin
+    return Process.kill(0, pid) == 1
+  rescue Errno::ESRCH
+    return false
+  end
+end
+
+# Load Process PID
+def load_pid pid_file=PID_FILE
+  pid = nil
+
+  begin
+    File.open pid_file do |f|
+      pid = f.read.to_i
+    end
+
+    pid = nil unless is_alive pid
+  rescue Errno::ENOENT
+    pid = nil
+  end
+
+  return pid
+end
+
+
+# Save Process PID
+def save_pid pid
+  File.open PID_FILE, 'w' do |f|
+    f.puts pid
+  end
+end
+
+#
+# Wait for a child process to die or timeout expires
+# returns the alive state of the child.
+#
+# negative timeout waits forever
+#
+def wait_stopped pid, timeout=60
+  alive=false
+  loop do
+    alive=is_alive pid
+    break unless alive && timeout > 0
+    sleep SLEEP_TIME
+    timeout -= SLEEP_TIME
+  end
+  return alive
+end
+
+# Load launcher type contents
+def load_launcher_data launcher_data_file="bin/LAUNCHER_TYPE"
+  launcher_data = nil
+
+  begin
+    File.open launcher_data_file do |f|
+      launcher_data = YAML.load(f.read)
+    end
+  rescue Errno::ENOENT
+  end
+
+  return launcher_data
+end
+
+#
+# Executes the actual child process. 
+# Reopens stdout and stderr to the general
+# log file.
+def execute main_class
+  STDOUT.reopen LOG_FILE, 'a'
+  STDOUT.sync=true
+
+  STDERR.reopen STDOUT
+  STDERR.sync=false
+
+
+  classpath=Dir.entries(File.join(@scripts.base, 'lib')).select {|dir| dir =~ /\.jar$/ }.collect { |dir| "lib/#{dir}" }.join(":")
+  jvm_opts=@scripts.get_jvm_opts.join(' ')
+  galaxy=@scripts.get_java_galaxy_env.join(' ')
+  config="-Dness.config.location=file:#{@scripts.config_location} -Dness.config=#{@scripts.config_path} -DTrumpetConfigLocation=file:#{@scripts.config_location} -DTrumpetConfig=#{@scripts.config_path}"
+
+  if File.exists?("#{@scripts.base}/log4j.xml")
+    logging="-Dlog4j.configuration=file:#{@scripts.base}/log4j.xml"
+  else
+    logging=""
+  end
+
+  puts "=" * 72
+  puts "=== config:    #{@scripts.config_path}"
+  puts "=== jvm:       #{jvm_opts}"
+  puts "=== galaxy:    #{galaxy}"
+  puts "=== extra:     #{logging} #{config}"
+  puts "=== classpath: #{classpath}"
+  puts "=== mainclass: #{main_class}"
+  puts "=" * 72
+
+  Dir.chdir @scripts.base
+  command="java #{logging} #{config} #{galaxy} #{jvm_opts} -classpath #{classpath} #{main_class}"
+  exec command
+end
+
+# Start command
+def start
+  pid = load_pid
+
+  unless pid.nil?
+    STDERR.puts "Already running as #{pid}."
+    return 2
+  end
+
+  launcher_data = load_launcher_data
+
+  pid = fork { execute launcher_data['launcher_main'] }
+
+  Process.detach pid
+  save_pid pid
+  STDERR.puts "Started as #{pid}."
+  return 0
+end
+
+# Stop command
+def stop
+  pid = load_pid
+
+  if pid.nil?
+    STDERR.puts 'Not running.'
+    return 0
+  else
+    Process.kill Signal.list['TERM'], pid
+    alive = wait_stopped pid, KILL_TIME
+    if (alive)
+      STDERR.puts "Process still alive after #{KILL_TIME} seconds, sending the wombats in!"
+      for i in 1..10
+        Process.kill Signal.list['KILL'], pid
+        alive = wait_stopped pid, KILL_TIME/10
+        if !alive
+          STDERR.puts "Wombats ate process on the #{i}. try."
+          break
+        end
+      end
+      if (alive)
+        STDERR.puts "Wombats were unable to eat the process, calling for help! HELP! HELP! HELP!"
+      end
+    end
+    return 0
+  end
+end
+
+# Status command
+def status
+  pid = load_pid
+
+  if pid.nil?
+    puts 'Not running.'
+    return 0
+  else
+    puts "Running as #{pid}."
+    return 1
+  end
+end
+
+# Restart Command
+def restart
+  stop
+  start
+end
+
+Dir.chdir @scripts.base
+
+exit case @scripts.rest[0]
+when 'start'
+  start
+when 'stop'
+  stop
+when 'restart'
+  restart
+when 'status'
+  status
+else
+  STDERR.puts "Unknown Command: #{@scripts.rest[0]}!"
+  2
+end

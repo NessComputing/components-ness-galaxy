@@ -1,0 +1,349 @@
+#!/usr/bin/env ruby
+
+#
+# Configure the just deployed service. This can be called
+# from xndeploy or the included control script when running 'update-config'.
+#
+
+require 'rubygems'
+
+require 'fileutils'
+require 'logger'
+require 'yaml'
+
+require 'galaxy/fetcher'
+require 'galaxy/host'
+require 'galaxy/properties'
+require 'galaxy/repository'
+require 'galaxy/scripts'
+
+@log = Logger.new(STDOUT)
+
+@scripts = Galaxy::ScriptSupport.new(ARGV) do |opts|
+  opts.on("--config-path PATH") { |path| @config_path = path }
+end
+
+Dir.chdir @scripts.base
+
+@remote_repo = @scripts.repository
+
+# workaround for old configurations
+
+#
+# Ness specific local folder where the depot is checked out to.
+# 
+DEFAULT_CHECKOUT_LOCATION=File.join(@scripts.base, "depot")
+
+#
+# The name of the installation manifest file
+#
+INSTALLATION_FILES = "installation.files"
+
+# Override the config path if it was given on the command line. This allows the update-config command
+# to override the data from the slot info.
+unless @config_path.nil?
+  @scripts.config_path = @config_path
+end
+
+def template(line, vars)
+  vars.each { | find, replace | line = line.gsub("\#{#{find}}", replace.to_s) }
+  line
+end
+
+def template_copy(src, dst, file, vars)
+  File.open(File.join(dst, file), "w") do |dst_file|
+    File.open(File.join(src, file)) do |src_file|
+      line = src_file.read
+      line = template line, vars
+      dst_file.print line
+    end
+  end
+end
+
+def file_copy(src, dst, file)
+  File.open(File.join(dst, file), "w") do |dst_file|
+    File.open(File.join(src, file)) do |src_file|
+      dst_file.write src_file.read
+    end
+  end
+end  
+
+
+# Move a configuration file into the right position
+#
+# repo - the repository object from which to load the
+#        file
+# vars - variable for replacement
+# src - src file name
+# dest - destination file name (may have @<chmod> attached)
+# mode - '-' -> templating copy, '!' -> binary copy
+#
+def move_file(repo, vars, src, dest, mode)
+  sources = repo.walk(@scripts.config_path, src)
+
+  dest,file_mode = dest.split(/\@/)
+  file_mode ||= "0666"
+  file_mode = file_mode.oct
+
+  target = File.join(@scripts.base, dest)
+  @log.debug("Target location: #{target}")
+  dirname = File.dirname target
+  if !File.exist?(dirname)
+    @log.debug("Creating folder #{dirname}")
+    FileUtils.mkdir_p dirname
+  end
+
+  if !sources.empty?
+    @log.debug("Sources found, replacing #{target}")
+    if File.exist?(target)
+      @log.debug("Removing old file #{target}")
+      File.delete(target)
+    end
+
+    case mode
+
+    when '-'
+      @log.debug("Template copying...")
+      # poor mans templating engine.
+      File.open target, "w" do |target_file|
+        sources.last.each_line do |line|
+          line = template line,vars
+          target_file.print line
+        end
+        target_file.chmod(file_mode)
+      end
+
+    when '!'
+      @log.debug("Binary copying...")
+      src = sources.last
+      File.open target, "w" do |file| 
+        file.write src 
+        file.chmod(file_mode)
+      end if src
+
+    else
+      @log.error("Unknown Mode: '#{mode}'!")
+    end
+  end
+end
+
+#
+# this contains hard coded knowledge about the
+# way galaxy requires config. This is put in a
+# single place so that it can be moved later.
+#
+def get_config_paths
+  config = @scripts.config_path.split("/")
+  (1..config.length).each { |x| yield config[1..x].join("/") }
+end
+
+#
+# Load the config tree from an SCM.
+#
+# config - the config information to check out. This is usually
+#
+def load_remote_config(config)
+  # remove the local copy of the configuration
+  if File.exists?(DEFAULT_CHECKOUT_LOCATION)
+    @log.debug("local checkout location #{DEFAULT_CHECKOUT_LOCATION} exists, removing")
+    FileUtils.rm_rf(DEFAULT_CHECKOUT_LOCATION) 
+  end
+
+  # check whether a copy from a remote service should be created
+
+  repo_name= config[1]
+  branch=config[2]
+  repo=@remote_repo + "/" + repo_name
+
+  # Mercurial
+  if @remote_repo.start_with?("ssh://")
+
+    command="hg clone -b #{branch} #{repo} #{DEFAULT_CHECKOUT_LOCATION}/#{repo_name}"
+    @log.info "Running command: #{command}"
+    unless system(command)
+      raise "Error loading config from remote location #{@remote_repo}!"
+    end
+    checkout_location=DEFAULT_CHECKOUT_LOCATION
+  elsif @remote_repo.start_with?("git://")
+    command="git clone --branch #{branch} #{@remote_repo} #{DEFAULT_CHECKOUT_LOCATION}/#{repo_name}"
+    @log.info "Running command: #{command}"
+    unless system(command)
+      raise "Error loading config from remote location #{@remote_repo}!"
+    end
+    checkout_location=DEFAULT_CHECKOUT_LOCATION
+  elsif @remote_repo =~ /^https?:/
+    #
+    # download the tarball with the full config.
+    #
+    remote_url="#{@remote_repo}/#{repo_name}/#{branch}.tar.gz"
+    FileUtils.mkdir_p "#{DEFAULT_CHECKOUT_LOCATION}/#{repo_name}"
+    begin
+      curl_command = "curl -D - #{remote_url} -o #{DEFAULT_CHECKOUT_LOCATION}/#{branch}.tar.gz -s"
+      @log.debug("Running CURL command: #{curl_command}")
+      output = Galaxy::HostUtils.system(curl_command)
+    rescue Galaxy::HostUtils::CommandFailedError => e
+      raise "Failed to download archive #{remote_url}: #{e.message}"
+    end
+    status = output.first
+    (protocol, response_code, response_message) = status.split
+    unless response_code == '200'
+      raise "Failed to download archive #{remote_url}: #{status}"
+    end
+
+    #
+    # unpack the tarball
+    #
+    command = "#{Galaxy::HostUtils.tar} -C #{DEFAULT_CHECKOUT_LOCATION}/#{repo_name} -xzf #{DEFAULT_CHECKOUT_LOCATION}/#{branch}.tar.gz"
+    begin
+      Galaxy::HostUtils.system command
+    rescue Galaxy::HostUtils::CommandFailedError => e
+      raise "Unable to extract archive: #{e.message}"
+    end
+
+    checkout_location=DEFAULT_CHECKOUT_LOCATION
+  else
+    # assume that the remote repo is a directory on the local machine from which 
+    # the files can be copied directly.
+    checkout_location=@remote_repo
+  end
+
+  #
+  # clean out the local config location (where all the templated config
+  # is picked up by the service
+  #
+  if File.exists?(@scripts.config_location)
+    @log.debug("Config location #{@scripts.config_location} exists, removing")
+    FileUtils.rm_rf(@scripts.config_location) 
+  end
+
+  checkout_location
+end
+
+#
+# Copy the config tree into place.
+#
+# vars - template variables when copying the repo files into their final location.
+#        Only files ending in .properties or .conf will get templated.
+#
+def copy_config_tree(local_checkout, vars)
+  get_config_paths do |path|
+    @log.debug("Copying #{path}...")
+    src=File.join(local_checkout, path)
+    dst=File.join(@scripts.config_location, path)
+
+    if !File.exist?(dst)
+      @log.debug("Creating folder #{dst}")
+      FileUtils.mkdir_p dst
+    end
+    
+    Dir.new(src).entries.each do |file|
+      next if not File.file?(File.join(src, file))
+      if file =~ /\.properties$/ || file =~ /\.conf$/
+        @log.debug("Templating #{file}...")
+        template_copy(src, dst, file, vars)
+      else
+        @log.debug("Copying #{file}...")
+        file_copy(src, dst, file)
+      end
+    end
+  end
+
+  #
+  # The remote repo contains the services in a folder called "services". For the actual
+  # deployment, this should be called the same as the deploy version.
+  #
+end
+
+#
+# load the installation.files file from the config tree, then 
+# parse it and update all the config files.
+#
+# repository - A Galaxy::Repository object pointing at the repo to use for
+#              load the files.
+#
+def install_config(repository, source_file, template_vars)
+
+  files = {}
+
+  unless source_file.nil?
+    source_file.each_line do |line|
+      next if line =~ /^#/
+      src, mode, dest = line.chomp.scan(/(\S+)\s*-(.?)>\s*(\S+)/)[0]
+      @log.debug("SRC: #{src}, DEST: #{dest}, mode: #{mode}")
+      if !src.nil? && !dest.nil?
+
+        # nil mode is "template it"
+        mode ||= '-'
+
+        files[src] = [dest, mode]
+      end
+    end
+
+    files.each { |src, res| move_file repository, template_vars, src, res[0], res[1] }
+  end
+end
+
+# Load launcher type contents
+def load_launcher_data(launcher_data_file="bin/LAUNCHER_TYPE")
+  launcher_data = nil
+
+  begin
+    File.open launcher_data_file do |f|
+      launcher_data = YAML.load(f.read)
+    end
+  rescue Errno::ENOENT
+  end
+
+  return launcher_data
+end
+
+
+local_checkout = load_remote_config @scripts.config
+
+information = @scripts.get_slot_variables
+information.sort.each {|x,y| @log.info("Template variables: #{x} -> #{y}") }
+
+information["java.galaxy_env"] = @scripts.get_java_galaxy_env.join(' ')
+
+# The first copy will miss all files that require jvm information (e.g. tomcat startup)
+# this information gets created from files that are not yet there.
+copy_config_tree local_checkout, information
+
+# add jvm opts (they are now available)
+jvm_opts = template @scripts.get_jvm_opts.join(' '), information
+information["java.jvm_opts"] = jvm_opts
+
+# Copy tree a second time, this time with jvm information.
+copy_config_tree local_checkout, information
+
+#
+# Copy all the remaining files directly from the mercurial tree.
+# If any of those files should be templated, it should be picked up
+# by using the "-->" directive in the installation.files manifest file.
+#
+repository =   Galaxy::Repository.new local_checkout, @log
+sources = repository.walk(@scripts.config_path, INSTALLATION_FILES)
+if sources.length == 0
+  @log.info("Could not locate the installation.files configuration file, not copying any additional files!")  
+else
+  @log.info("Sources file to use: #{sources.last}")
+  install_config repository, sources.last, information
+
+  #
+  # figure out whether a type specific configuration script exists. If yes,
+  # execute that scripts to allow further customization
+  #
+  launcher_data = load_launcher_data
+  if launcher_data.nil? || launcher_data['launcher_type'].nil?
+    launcher_type = "tomcat"
+  else
+    launcher_type = launcher_data['launcher_type']
+  end
+
+  configure_script = File.join(@scripts.base, "bin", "configure.#{launcher_type}")
+  if File.exists?(configure_script)
+    remainder = *@scripts.rest
+    @log.debug("Found specific configuration script, invoking #{configure_script} --slot-info #{@scripts.slot_info} #{remainder}")
+    exec "#{configure_script} --slot-info #{@scripts.slot_info} #{remainder}"
+  end
+end

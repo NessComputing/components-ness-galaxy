@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<assembly
+    xmlns="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2 http://maven.apache.org/xsd/assembly-1.1.2.xsd">
+  
+  <id>activemq</id>
+  <formats>
+    <format>tar.gz</format>
+  </formats>
+  <includeBaseDirectory>false</includeBaseDirectory>
+
+  <componentDescriptors>
+    <componentDescriptor>assemblies/ness-components.xml</componentDescriptor>
+  </componentDescriptors>
+  
+  <dependencySets>        
+    <!-- 
+	 ========================================================================
+	 =
+	 = Move all the dependency jars into the lib folder. Rename them to contain
+	 = the group id of the jar.
+	 =
+	 ========================================================================
+    -->
+    <dependencySet>
+      <outputDirectory>/lib</outputDirectory>
+      <useProjectArtifact>true</useProjectArtifact>
+      <useTransitiveDependencies>true</useTransitiveDependencies>
+      <directoryMode>0777</directoryMode>
+      <fileMode>0644</fileMode>
+      <outputFileNameMapping>${artifact.groupId}-${artifact.artifactId}-${artifact.version}${dashClassifier?}.${artifact.extension}</outputFileNameMapping>
+      <includes>
+	<include>*:jar:*</include>
+      </includes>
+    </dependencySet>
+
+    <!-- 
+	 ========================================================================
+	 =
+	 = Add the ActiveMQ admin web application.
+	 =
+	 ========================================================================
+    -->
+    <dependencySet>
+      <scope>provided</scope>
+      <useProjectArtifact>false</useProjectArtifact>
+      <outputDirectory>/webapps/admin</outputDirectory>
+      <includes>
+	<include>org.apache.activemq:activemq-web-console:war</include>
+      </includes>
+      <unpack>true</unpack>
+      <fileMode>0644</fileMode>
+      <directoryMode>0777</directoryMode>
+      <unpackOptions>
+	<excludes>
+	  <exclude>WEB-INF/lib/*</exclude>
+	  <exclude>WEB-INF/webconsole-embedded.xml</exclude>
+	</excludes>
+      </unpackOptions>
+    </dependencySet>
+  </dependencySets>
+</assembly>

@@ -1,0 +1,24 @@
+#! /usr/bin/env ruby
+
+#
+# Loads jvm.properties file from the config location
+# and returns all the options for the JVM in a format that is suitable to be
+# used for java $(jvm_opts) <program>
+#
+# Inspected files are
+#
+# <config-location>/jvm.properties  -- for local modifications / testing. Should be empty most of the time
+# env/jvm.properties
+# env/version/jvm.properties
+# env/version/type/jvm.properties
+#
+# Elements in more specific locations override elements in more general locations.
+#
+
+require 'rubygems'
+require 'galaxy/scripts'
+
+scripts = Galaxy::ScriptSupport.new ARGV
+
+puts scripts.get_jvm_opts.join(" ")
+

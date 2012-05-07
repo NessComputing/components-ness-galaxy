@@ -1,0 +1,2 @@
+launcher_type: ${galaxy.launcher}
+launcher_main: ${galaxy.mainclass}

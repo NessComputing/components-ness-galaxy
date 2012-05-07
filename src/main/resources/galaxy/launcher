@@ -1,0 +1,70 @@
+#! /usr/bin/env ruby
+
+# If Galaxy is to start and stop processes, a bin/launcher script is
+# also required. This script takes one of "start", "stop", "restart", or
+# "status", and returns with exit status 0 (stopped), 1 (running), or 2
+# (unknown).
+#
+# The launcher opens a type file (LAUNCHER_TYPE) in the bin folder
+# of the application which contains the actual launcher type. It then
+# executes this special launcher script. If no special file exists or
+# the actual script does not exist, it will fall back to launcher.standalone
+# which is included in ness-galaxy.
+#
+#
+
+=begin
+
+launcher command
+
+Commands:
+start
+stop
+restart
+status
+
+Commands return
+
+0 - Stopped
+1 - Running 
+2 - Unknown
+=end
+
+require 'rubygems'
+require 'yaml'
+require 'galaxy/scripts'
+
+scripts = Galaxy::ScriptSupport.new ARGV
+
+Dir.chdir File.join(scripts.base, "bin")
+
+# Load launcher type contents
+def load_launcher_data(launcher_data_file="LAUNCHER_TYPE")
+  launcher_data = nil
+
+  begin
+    File.open launcher_data_file do |f|
+      launcher_data = YAML.load(f.read)
+    end
+  rescue Errno::ENOENT
+  end
+
+  return launcher_data
+end
+
+launcher_data = load_launcher_data
+
+if launcher_data.nil? || launcher_data['launcher_type'].nil?
+  launcher_type = "standalone"
+else
+  launcher_type = launcher_data['launcher_type']
+end
+
+launcher_script = File.join(scripts.base, "bin", "launcher.#{launcher_type}")
+remainder = *scripts.rest
+
+if remainder.is_a? Array
+  remainder = remainder.join(' ')
+end
+
+exec "#{launcher_script} --slot-info #{scripts.slot_info} #{remainder}"

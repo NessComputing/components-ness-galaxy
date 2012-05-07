@@ -1,0 +1,14 @@
+#! /usr/bin/env ruby
+
+#
+# Adds defines for all environmental definitions from the slot_info file
+# and returns it in a format that is suitable to be
+# used for java $(java_galaxy_env) <program>
+#
+
+require 'rubygems'
+require 'galaxy/scripts'
+
+scripts = Galaxy::ScriptSupport.new ARGV
+
+puts scripts.get_java_galaxy_env.join(" ")

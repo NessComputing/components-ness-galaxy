@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<assembly>
+  <id>galaxy-scripts</id>
+  <formats>
+    <format>tar.gz</format>
+  </formats>
+  <includeBaseDirectory>false</includeBaseDirectory>
+  <fileSets>
+    <fileSet>
+      <directory>src/main/resources/galaxy</directory>
+      <outputDirectory>/</outputDirectory>
+      <fileMode>0755</fileMode>
+    </fileSet>
+  </fileSets>
+</assembly>

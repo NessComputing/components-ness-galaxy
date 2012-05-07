@@ -1,0 +1,18 @@
+#!/usr/bin/env ruby
+
+# The archive must contain at least one file, bin/xndeploy, that must
+# return a 0 exit status. This script can do whatever is needed to
+# deploy the application being installed. Note that most xndeploy
+# scripts require the Galaxy library to be included in the archive,
+# under lib/galaxy.
+
+require 'rubygems'
+require 'galaxy/scripts'
+
+scripts = Galaxy::ScriptSupport.new ARGV
+
+Dir.chdir scripts.base
+
+unless system("bin/configure --slot-info #{scripts.slot_info}")
+  raise "Unable to invoke the configure script!"
+end

@@ -1,0 +1,26 @@
+#!/usr/bin/env ruby
+
+#
+# Executed as 
+#
+# #{@script} --base #{@core_base} --binaries #{@binaries_base} --config-path #{@config_path} --repository #{@repository_base} #{command} #{args}
+# (see controller.rb)
+
+require 'rubygems'
+require 'galaxy/scripts'
+
+scripts = Galaxy::ScriptSupport.new ARGV
+
+Dir.chdir scripts.base
+
+# first remaining argument is the command to execute
+exit case scripts.rest[0]
+     when 'update-config'
+       unless system("bin/configure --slot-info #{scripts.slot_info} --config-path #{scripts.rest[1]}")
+         raise "Unable to invoke the configure script to reload the configuration!"
+       end
+       0
+     else
+       puts "Unknown Command: #{scripts.rest[0]}!"
+       2
+     end

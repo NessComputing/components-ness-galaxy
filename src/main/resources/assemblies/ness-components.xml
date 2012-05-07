@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<component xmlns="http://maven.apache.org/plugins/maven-assembly-plugin/component/1.1.2"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/component/1.1.2 http://maven.apache.org/xsd/component-1.1.2.xsd">
+
+  <!-- 
+       ========================================================================
+       =
+       = This loads the various folders from the actual project into the final 
+       = tarball.
+       =
+       = src/main/galaxy         ==> / (.../galaxy/bin goes to bin, .../galaxy/etc goes to etc)
+       =
+       ========================================================================
+  -->
+  <fileSets>
+    <fileSet>
+      <directory>src/main/galaxy</directory>
+      <outputDirectory>/</outputDirectory>
+      <fileMode>0755</fileMode>
+    </fileSet>
+  </fileSets>
+
+  <!-- 
+       ========================================================================
+       =
+       = Unpack the deploy-scripts archive into the bin folder.
+       =
+       = Deploy scripts should be configured in the dependencies for the the "build-release"
+       = profile with scope 'provided'.
+       =
+       =      <dependency>
+       =        <groupId>ness.components</groupId>
+       =        <artifactId>ness-galaxy</artifactId>
+       =        <version>${galaxy.scripts.version}</version>
+       =        <type>tar.gz</type>
+       =        <scope>provided</scope>
+       =      </dependency>
+       =
+       = The "bin/LAUNCHER_TYPE" file is filtered and the right launcher type 
+       = is put into this file.
+       =
+       ========================================================================
+  -->
+  <dependencySets>
+    <dependencySet>
+      <scope>provided</scope>
+      <useProjectArtifact>false</useProjectArtifact>
+      <outputDirectory>/bin</outputDirectory>
+      <includes>
+	<include>ness.components:ness-galaxy:tar.gz</include>
+      </includes>
+      <unpack>true</unpack>
+      <unpackOptions>
+	<excludes>
+	  <exclude>META-INF</exclude>
+	  <exclude>META-INF/**/*</exclude>
+	  <exclude>LAUNCHER_TYPE</exclude>
+	</excludes>
+      </unpackOptions>
+      <directoryMode>0777</directoryMode>
+      <fileMode>0755</fileMode>
+    </dependencySet>
+
+    <dependencySet>
+      <scope>provided</scope>
+      <useProjectArtifact>false</useProjectArtifact>
+      <outputDirectory>/bin</outputDirectory>
+      <includes>
+	<include>ness.components:ness-galaxy:tar.gz</include>
+      </includes>
+      <unpack>true</unpack>
+      <unpackOptions>
+	<includes>
+	  <include>LAUNCHER_TYPE</include>
+	</includes>
+	<filtered>true</filtered>
+      </unpackOptions>
+      <!-- Workaround for MASSEMBLY-533 -->
+      <outputFileNameMapping></outputFileNameMapping>
+      <directoryMode>0777</directoryMode>
+      <fileMode>0755</fileMode>
+    </dependencySet>
+  </dependencySets>
+</component>
