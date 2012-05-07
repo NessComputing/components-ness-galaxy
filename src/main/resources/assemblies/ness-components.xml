@@ -4,10 +4,10 @@
            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
            xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/component/1.1.2 http://maven.apache.org/xsd/component-1.1.2.xsd">
 
-  <!-- 
+  <!--
        ========================================================================
        =
-       = This loads the various folders from the actual project into the final 
+       = This loads the various folders from the actual project into the final
        = tarball.
        =
        = src/main/galaxy         ==> / (.../galaxy/bin goes to bin, .../galaxy/etc goes to etc)
@@ -22,7 +22,7 @@
     </fileSet>
   </fileSets>
 
-  <!-- 
+  <!--
        ========================================================================
        =
        = Unpack the deploy-scripts archive into the bin folder.
@@ -31,14 +31,14 @@
        = profile with scope 'provided'.
        =
        =      <dependency>
-       =        <groupId>ness.components</groupId>
+       =        <groupId>com.nesscomputing.components</groupId>
        =        <artifactId>ness-galaxy</artifactId>
        =        <version>${galaxy.scripts.version}</version>
        =        <type>tar.gz</type>
        =        <scope>provided</scope>
        =      </dependency>
        =
-       = The "bin/LAUNCHER_TYPE" file is filtered and the right launcher type 
+       = The "bin/LAUNCHER_TYPE" file is filtered and the right launcher type
        = is put into this file.
        =
        ========================================================================
@@ -49,7 +49,7 @@
       <useProjectArtifact>false</useProjectArtifact>
       <outputDirectory>/bin</outputDirectory>
       <includes>
-	<include>ness.components:ness-galaxy:tar.gz</include>
+	<include>com.nesscomputing.components:ness-galaxy:tar.gz</include>
       </includes>
       <unpack>true</unpack>
       <unpackOptions>
@@ -68,7 +68,7 @@
       <useProjectArtifact>false</useProjectArtifact>
       <outputDirectory>/bin</outputDirectory>
       <includes>
-	<include>ness.components:ness-galaxy:tar.gz</include>
+	<include>com.nesscomputing.components:ness-galaxy:tar.gz</include>
       </includes>
       <unpack>true</unpack>
       <unpackOptions>

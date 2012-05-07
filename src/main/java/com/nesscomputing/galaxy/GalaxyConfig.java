@@ -1,4 +1,6 @@
-package ness.config.galaxy;
+package com.nesscomputing.galaxy;
+
+import javax.annotation.Nonnull;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -25,31 +27,37 @@ public class GalaxyConfig
         this.privat = config.getBean("galaxy.private", GalaxyPrivate.class);
     }
 
+    @Nonnull
     public GalaxyIp getInternalIp()
     {
         return internalIp;
     }
 
+    @Nonnull
     public GalaxyIp getExternalIp()
     {
         return externalIp;
     }
 
+    @Nonnull
     public GalaxyDeploy getDeploy()
     {
         return deploy;
     }
 
+    @Nonnull
     public GalaxyEnv getEnv()
     {
         return env;
     }
 
+    @Nonnull
     public GalaxyGlobal getGlobal()
     {
         return global;
     }
 
+    @Nonnull
     public GalaxyPrivate getPrivate()
     {
         return privat;

@@ -1,7 +1,8 @@
-package ness.config.galaxy;
+package com.nesscomputing.galaxy;
 
 import org.skife.config.Config;
 import org.skife.config.Default;
+
 
 /**
  * Represents a set of IP information from the galaxy system properties.

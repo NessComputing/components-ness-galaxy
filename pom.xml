@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
   <modelVersion>4.0.0</modelVersion>
   <parent>
@@ -15,7 +17,7 @@
     <url>http://github.com/NessComputing/components-ness-galaxy</url>
   </scm>
 
-  <groupId>ness.components</groupId>
+  <groupId>com.nesscomputing.components</groupId>
   <artifactId>ness-galaxy</artifactId>
   <name>ness galaxy scripts </name>
   <version>1.0.0-SNAPSHOT</version>
@@ -69,6 +71,11 @@
     <dependency>
       <groupId>org.skife.config</groupId>
       <artifactId>config-magic</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.code.findbugs</groupId>
+      <artifactId>jsr305</artifactId>
     </dependency>
   </dependencies>
 </project>

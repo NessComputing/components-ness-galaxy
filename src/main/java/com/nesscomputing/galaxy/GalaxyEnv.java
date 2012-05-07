@@ -1,4 +1,4 @@
-package ness.config.galaxy;
+package com.nesscomputing.galaxy;
 
 import org.skife.config.Config;
 import org.skife.config.DefaultNull;
