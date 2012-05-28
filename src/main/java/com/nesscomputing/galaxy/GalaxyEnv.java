@@ -78,4 +78,18 @@ public abstract class GalaxyEnv
     {
         return null;
     }
+
+    @Config("tmp_dir")
+    @DefaultNull
+    public String getTmpDir()
+    {
+        return null;
+    }
+
+    @Config("persistent_dir")
+    @DefaultNull
+    public String getPersistentDir()
+    {
+        return null;
+    }
 }

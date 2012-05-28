@@ -128,25 +128,33 @@ def execute main_class
   STDOUT.sync=true
 
   STDERR.reopen STDOUT
-  STDERR.sync=false
+  STDERR.sync=true
 
 
   classpath=Dir.entries(File.join(@scripts.base, 'lib')).select {|dir| dir =~ /\.jar$/ }.collect { |dir| "lib/#{dir}" }.join(":")
   jvm_opts=@scripts.get_jvm_opts.join(' ')
   galaxy=@scripts.get_java_galaxy_env.join(' ')
-  config="-Dness.config.location=file:#{@scripts.config_location} -Dness.config=#{@scripts.config_path} -DTrumpetConfigLocation=file:#{@scripts.config_location} -DTrumpetConfig=#{@scripts.config_path}"
+
+  config_opts = [
+                 "-Dness.config.location=file:#{@scripts.config_location}",
+                 "-Dness.config=#{@scripts.config_path}"
+                ]
 
   if File.exists?("#{@scripts.base}/log4j.xml")
-    logging="-Dlog4j.configuration=file:#{@scripts.base}/log4j.xml"
-  else
-    logging=""
+    config_opts << "-Dlog4j.configuration=file:#{@scripts.base}/log4j.xml"
   end
+
+  if @scripts.respond_to? "tmp_dir" && ! @scripts.tmp_dir.nil?
+    config_opts << "-Djava.io.tmpdir=#{@scripts.tmp_dir}"
+  end
+
+  config = config_opts.join(" ")
 
   puts "=" * 72
   puts "=== config:    #{@scripts.config_path}"
   puts "=== jvm:       #{jvm_opts}"
   puts "=== galaxy:    #{galaxy}"
-  puts "=== extra:     #{logging} #{config}"
+  puts "=== extra:     #{config}"
   puts "=== classpath: #{classpath}"
   puts "=== mainclass: #{main_class}"
   puts "=" * 72
