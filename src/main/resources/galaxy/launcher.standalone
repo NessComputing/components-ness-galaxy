@@ -128,7 +128,7 @@ def execute main_class
   STDOUT.sync=true
 
   STDERR.reopen STDOUT
-  STDERR.sync=false
+  STDERR.sync=true
 
 
   classpath=Dir.entries(File.join(@scripts.base, 'lib')).select {|dir| dir =~ /\.jar$/ }.collect { |dir| "lib/#{dir}" }.join(":")
