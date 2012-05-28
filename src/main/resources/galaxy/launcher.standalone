@@ -141,16 +141,20 @@ def execute main_class
                 ]
 
   if File.exists?("#{@scripts.base}/log4j.xml")
-    logging="-Dlog4j.configuration=file:#{@scripts.base}/log4j.xml"
-  else
-    logging=""
+    config_opts << "-Dlog4j.configuration=file:#{@scripts.base}/log4j.xml"
   end
+
+  if @scripts.respond_to? "tmp_dir" && ! @scripts.tmp_dir.nil?
+    config_opts << "-Djava.io.tmpdir=#{@scripts.tmp_dir}"
+  end
+
+  config = config_opts.join(" ")
 
   puts "=" * 72
   puts "=== config:    #{@scripts.config_path}"
   puts "=== jvm:       #{jvm_opts}"
   puts "=== galaxy:    #{galaxy}"
-  puts "=== extra:     #{logging} #{config}"
+  puts "=== extra:     #{config}"
   puts "=== classpath: #{classpath}"
   puts "=== mainclass: #{main_class}"
   puts "=" * 72
