@@ -144,7 +144,7 @@ def execute main_class
     config_opts << "-Dlog4j.configuration=file:#{@scripts.base}/log4j.xml"
   end
 
-  if @scripts.respond_to? "tmp_dir" && ! @scripts.tmp_dir.nil?
+  if @scripts.respond_to?("tmp_dir") && ! @scripts.tmp_dir.nil?
     config_opts << "-Djava.io.tmpdir=#{@scripts.tmp_dir}"
   end
 
