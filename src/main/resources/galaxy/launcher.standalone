@@ -160,7 +160,7 @@ def execute main_class
   puts "=" * 72
 
   Dir.chdir @scripts.base
-  command="java #{logging} #{config} #{galaxy} #{jvm_opts} -classpath #{classpath} #{main_class}"
+  command="java #{jvm_opts} #{config} #{galaxy} -classpath #{classpath} #{main_class}"
   exec command
 end
 
