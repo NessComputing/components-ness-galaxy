@@ -119,29 +119,17 @@ def load_launcher_data launcher_data_file="bin/LAUNCHER_TYPE"
   return launcher_data
 end
 
-JDK_LOCATION = { 'Linux' => { '1.6.0' => '/usr/lib/jvm/java-1.6.0',
-                              '1.7.0' => '/usr/lib/jvm/java-1.7.0' },
-                 'Darwin' => { '1.6.0' => '/System/Library/Frameworks/JavaVM.framework/Versions/1.6.0/Home',
-                               '1.7.0' => '/Library/Java/JavaVirtualMachines/1.7.0.jdk/Contents/Home'}
-               }
-
 def find_jvm_home jdk_version
-  if jdk_version.nil?
-    return nil
-  end
-  uname=`uname`.chomp
-  if uname.nil?
-    STDERR.puts "Could not determine platform type, falling back to default!"
-    return nil
-  end
-  jdk_platform = JDK_LOCATION[uname]
-  if jdk_platform.nil?
-    STDERR.puts "Platform #{uname} not supported by this launcher, falling back to default!"
-    return nil
-  end
-  jdk_home = jdk_platform[jdk_version]
-  if jdk_home.nil?
-    STDERR.puts "Could not locate JDK #{jdk_version} on platform #{uname}, falling back to default!"
+
+  jdk_home = nil
+
+  if @scripts.respond_to?("find_installed_jdks")
+    installed_jdks = @scripts.find_installed_jdks
+
+    jdk_home = installed_jdks[jdk_version]
+    if jdk_home.nil?
+      STDERR.puts "Could not locate JDK #{jdk_version} (found #{installed_jdks.keys}, falling back to default!"
+    end
   end
 
   jdk_home
