@@ -1,2 +1,3 @@
 launcher_type: ${galaxy.launcher}
 launcher_main: ${galaxy.mainclass}
+jvm_version: ${galaxy.jvm}

@@ -119,17 +119,55 @@ def load_launcher_data launcher_data_file="bin/LAUNCHER_TYPE"
   return launcher_data
 end
 
+JDK_LOCATION = [ 'Linux' => [ '1.6.0' => '/usr/lib/jvm/java-1.6.0',
+                              '1.7.0' => '/usr/lib/jvm/java-1.7.0' ],
+                 'Darwin' => [ '1.6.0' => '/System/Library/Frameworks/JavaVM.framework/Versions/1.6.0/Home',
+                               '1.7.0' => '/Library/Java/JavaVirtualMachines/1.7.0.jdk/Contents/Home']
+               ]
+
+def find_jvm_home jdk_version
+  if jdk_version.nil?
+    return nil
+  end
+  uname=`uname`
+  if uname.nil?
+    STDERR.puts "Could not determine platform type, falling back to default!"
+    return nil
+  end
+  jdk_platform = JDK_LOCATION[uname]
+  if jdk_platform.nil?
+    STDERR.puts "Platform #{uname} not supported by this launcher, falling back to default!"
+    return nil
+  end
+  jdk_home = jdk_platform[jdk_version]
+  if jdk_home.nil?
+    STDERR.puts "Could not locate JDK #{jdk_version} on platform #{uname}, falling back to default!"
+  end
+
+  jdk_home
+end
+
 #
 # Executes the actual child process. 
 # Reopens stdout and stderr to the general
 # log file.
-def execute main_class
+def execute launcher_data
   STDOUT.reopen LOG_FILE, 'a'
   STDOUT.sync=true
 
   STDERR.reopen STDOUT
   STDERR.sync=true
 
+  main_class = launcher_data['launcher_main']
+  jvm_home = find_jvm_home launcher_data['jvm_version']
+
+  if !jvm_home.nil?
+    ENV['JAVA_HOME']=jvm_home
+    java_launcher=File.join(jvm_home, "bin", "java")
+  else
+    java_launcher="java"
+  end
+    
 
   classpath=Dir.entries(File.join(@scripts.base, 'lib')).select {|dir| dir =~ /\.jar$/ }.collect { |dir| "lib/#{dir}" }.join(":")
   jvm_opts=@scripts.get_jvm_opts.join(' ')
@@ -156,11 +194,15 @@ def execute main_class
   puts "=== galaxy:    #{galaxy}"
   puts "=== extra:     #{config}"
   puts "=== classpath: #{classpath}"
+  puts "=== java:      #{java_launcher}"
+  if !jvm_home.nil?
+    puts "=== java_home: #{jvm_home}"
+  end
   puts "=== mainclass: #{main_class}"
   puts "=" * 72
 
   Dir.chdir @scripts.base
-  command="java #{jvm_opts} #{config} #{galaxy} -classpath #{classpath} #{main_class}"
+  command="#{java_launcher} #{jvm_opts} #{config} #{galaxy} -classpath #{classpath} #{main_class}"
   exec command
 end
 
@@ -175,7 +217,7 @@ def start
 
   launcher_data = load_launcher_data
 
-  pid = fork { execute launcher_data['launcher_main'] }
+  pid = fork { execute launcher_data }
 
   Process.detach pid
   save_pid pid
