@@ -77,5 +77,28 @@
         </excludes>
       </unpackOptions>
     </dependencySet>
+    <!-- 
+     ========================================================================
+     =
+     = Add the Jolokia web application.
+     =
+     ========================================================================
+    -->
+    <dependencySet>
+      <scope>provided</scope>
+      <useProjectArtifact>false</useProjectArtifact>
+      <outputDirectory>/webapps/jolokia</outputDirectory>
+      <includes>
+        <include>org.jolokia:jolokia-war:war</include>
+      </includes>
+      <unpack>true</unpack>
+      <fileMode>0644</fileMode>
+      <directoryMode>0777</directoryMode>
+      <unpackOptions>
+        <excludes>
+          <exclude>WEB-INF/lib/*</exclude>
+        </excludes>
+      </unpackOptions>
+    </dependencySet>
   </dependencySets>
 </assembly>
